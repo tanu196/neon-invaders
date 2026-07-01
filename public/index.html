@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#050014">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="インベーダー">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>NEON INVADERS - オリジナル2Dシューティング</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="rotate-hint">📱➡️🖥️ 横画面にするとより遊びやすくなります</div>
+
+<div id="game-wrap">
+  <div id="stage-area">
+    <canvas id="game" width="480" height="720"></canvas>
+
+    <div id="screen-menu" class="overlay">
+      <h1 class="title">NEON INVADERS</h1>
+      <p class="subtitle">★ オリジナル宇宙シューティング ★</p>
+      <button class="btn" id="btn-menu-solo">1人プレイ</button>
+      <button class="btn" id="btn-menu-online">オンライン対戦</button>
+      <button class="btn btn-ghost" id="btn-menu-howto">操作方法</button>
+      <button class="btn btn-ghost" id="btn-menu-settings">設定</button>
+      <button class="btn btn-ghost" id="sound-toggle">🔊 音 ON</button>
+      <div class="panel">
+        <h3>ローカルランキング TOP5</h3>
+        <ol class="ranking" id="ranking-start"></ol>
+      </div>
+    </div>
+
+    <div id="screen-solo" class="overlay hidden">
+      <h1 class="title">1人プレイ</h1>
+      <div class="panel">
+        <h3>難易度を選択</h3>
+        <div class="choice-row" id="difficulty-row">
+          <div class="choice" data-diff="easy">EASY</div>
+          <div class="choice active" data-diff="normal">NORMAL</div>
+          <div class="choice" data-diff="hard">HARD</div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>機体カラー（スキン）</h3>
+        <div class="choice-row" id="skin-row"></div>
+      </div>
+      <button class="btn" id="btn-solo-start">スタート</button>
+      <button class="btn btn-ghost" id="btn-solo-back">戻る</button>
+    </div>
+
+    <div id="screen-howto" class="overlay hidden">
+      <h1 class="title" style="font-size:30px">操作方法</h1>
+      <div class="howto-text">
+        <p><b>PC</b></p>
+        <p>← / A：左移動　　→ / D：右移動</p>
+        <p>Space：発射　　P：一時停止</p>
+        <p style="margin-top:12px"><b>スマホ</b></p>
+        <p>画面下の「左・発射・右」ボタンをタッチ</p>
+        <p style="margin-top:12px"><b>オンライン対戦</b></p>
+        <p>ルームを作って相手にIDを伝えるか、IDを入力して参加。<br>制限時間60秒で高スコアの勝ち。</p>
+      </div>
+      <button class="btn btn-ghost" id="btn-howto-back">戻る</button>
+    </div>
+
+    <!-- ================== 設定画面 ================== -->
+    <div id="screen-settings" class="overlay hidden">
+      <h1 class="title" style="font-size:30px">設定</h1>
+      <div class="panel">
+        <h3>移動速度（おすすめ: 5）</h3>
+        <div id="speed-value" style="font-size:20px;color:var(--neon-cyan);margin:4px 0">5（普通）</div>
+        <input id="speed-slider" type="range" min="1" max="10" step="1" value="5" style="width:100%">
+        <div class="choice-row" id="speed-presets" style="margin-top:8px">
+          <div class="choice" data-speed="3">遅い</div>
+          <div class="choice" data-speed="5">普通</div>
+          <div class="choice" data-speed="8">速い</div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>サウンド</h3>
+        <div class="choice-row"><div class="choice active" id="set-sound">🔊 ON</div></div>
+      </div>
+      <div class="panel">
+        <h3>スマホ操作ボタンの表示</h3>
+        <div class="choice-row"><div class="choice active" id="set-controls">表示 ON</div></div>
+      </div>
+      <button class="btn btn-ghost" id="btn-settings-back">戻る</button>
+    </div>
+
+    <div id="screen-online" class="overlay hidden">
+      <h1 class="title" style="color:var(--neon-pink);text-shadow:0 0 12px var(--neon-pink)">オンライン対戦</h1>
+      <p class="subtitle" id="online-status">サーバーに接続して開始します</p>
+      <button class="btn" id="btn-create-room">ルームを作成</button>
+      <div class="panel">
+        <h3>ルームIDを入力して参加</h3>
+        <div class="choice-row" style="gap:6px">
+          <input id="room-id-input" maxlength="4" placeholder="例: K7QX"
+                 style="flex:1;min-width:120px;padding:11px;font-size:18px;text-align:center;text-transform:uppercase;border-radius:8px;border:1.5px solid #888;background:#0c1024;color:#fff;letter-spacing:3px">
+          <button class="btn" style="margin:0" id="btn-join-room">参加</button>
+        </div>
+      </div>
+      <div id="waiting-box" class="panel hidden">
+        <h3>ルームID</h3>
+        <div id="room-id-show" style="font-size:34px;color:var(--neon-cyan);letter-spacing:5px">----</div>
+        <p class="subtitle" style="margin-top:8px">相手を待っています…</p>
+      </div>
+      <button class="btn btn-ghost" id="btn-online-back">戻る</button>
+    </div>
+
+    <div id="screen-result" class="overlay hidden">
+      <h1 class="title" id="result-title">RESULT</h1>
+      <div style="font-size:18px;margin:8px 0" id="result-score">-</div>
+      <p class="subtitle" id="result-note"></p>
+      <button class="btn" id="btn-result-again">もう一度（メニューへ）</button>
+    </div>
+
+    <div id="screen-pause" class="overlay hidden">
+      <h1 class="title" style="color:var(--neon-yellow);text-shadow:0 0 12px var(--neon-yellow)">PAUSE</h1>
+      <p class="subtitle">一時停止中</p>
+      <button class="btn" id="btn-resume">再開する</button>
+      <button class="btn btn-ghost" id="btn-pause-settings">設定</button>
+      <button class="btn btn-ghost" id="btn-quit">タイトルへ戻る</button>
+    </div>
+
+    <div id="screen-over" class="overlay hidden">
+      <h1 class="title" style="color:var(--neon-pink);text-shadow:0 0 12px var(--neon-pink)">GAME OVER</h1>
+      <p class="subtitle" id="over-reason">敵に侵略されました…</p>
+      <div style="font-size:20px;margin:6px 0">SCORE: <b id="over-score" style="color:var(--neon-cyan)">0</b></div>
+      <div style="font-size:14px;color:#9fb6ff" id="over-best">HI-SCORE: 0</div>
+      <div class="panel"><ol class="ranking" id="ranking-over"></ol></div>
+      <button class="btn" id="btn-restart">もう一度プレイ</button>
+      <button class="btn btn-ghost" id="btn-title">タイトルへ</button>
+    </div>
+  </div>
+
+  <div id="touch-controls">
+    <div class="pad" id="pad-left">◀ 左</div>
+    <div class="pad fire" id="pad-fire">● 発射</div>
+    <div class="pad" id="pad-right">右 ▶</div>
+  </div>
+  <p class="hint">PC: ←/A 左　→/D 右　Space 発射　P 一時停止</p>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

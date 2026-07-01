@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<!-- スマホでも拡大縮小されないようにビューポートを設定 -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NEON INVADERS - オリジナル2Dシューティング</title>
+<style>
+  /* =========================================================
+     全体のスタイル（ネオン風・宇宙デザイン）
+     ========================================================= */
+  :root{
+    --neon-cyan:  #2ef2ff;
+    --neon-pink:  #ff3df0;
+    --neon-green: #45ff8f;
+    --neon-yellow:#ffe14d;
+    --bg-dark:    #05060f;
+  }
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body{
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: radial-gradient(circle at 50% 30%, #0b1030 0%, var(--bg-dark) 70%);
+    color: #fff;
+    font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+    overflow: hidden;
+    user-select: none;
+    touch-action: manipulation;
+  }
+
+  /* ゲーム全体を縦に並べるコンテナ */
+  #game-wrap{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  /* キャンバスの外枠（ネオンの光） */
+  #stage-area{
+    position: relative;
+    line-height: 0;
+  }
+  canvas#game{
+    background: #02030a;
+    border: 2px solid var(--neon-cyan);
+    border-radius: 10px;
+    box-shadow: 0 0 18px rgba(46,242,255,0.55), inset 0 0 22px rgba(46,242,255,0.15);
+    display: block;
+    touch-action: none;
+  }
+
+  /* =========================================================
+     画面オーバーレイ（スタート/ポーズ/ゲームオーバー）
+     ========================================================= */
+  .overlay{
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 18px;
+    background: rgba(3, 5, 18, 0.82);
+    border-radius: 10px;
+    backdrop-filter: blur(2px);
+  }
+  .overlay.hidden{ display: none; }
+
+  .title{
+    font-size: clamp(26px, 7vw, 44px);
+    font-weight: 800;
+    letter-spacing: 2px;
+    margin: 0 0 6px;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 10px var(--neon-cyan), 0 0 24px rgba(46,242,255,0.6);
+  }
+  .subtitle{
+    font-size: clamp(12px, 3.4vw, 16px);
+    color: var(--neon-pink);
+    text-shadow: 0 0 8px rgba(255,61,240,0.7);
+    margin: 0 0 14px;
+  }
+
+  /* 設定パネル（難易度・スキン・音） */
+  .panel{
+    width: min(360px, 92%);
+    margin: 6px 0;
+  }
+  .panel h3{
+    font-size: 13px;
+    color: #9fb6ff;
+    margin: 10px 0 6px;
+    letter-spacing: 1px;
+  }
+  .choice-row{
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .choice{
+    flex: 1 1 0;
+    min-width: 70px;
+    padding: 9px 6px;
+    background: rgba(255,255,255,0.05);
+    border: 1.5px solid rgba(255,255,255,0.25);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    transition: .15s;
+  }
+  .choice.active{
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 12px rgba(46,242,255,0.6);
+    background: rgba(46,242,255,0.12);
+  }
+  /* スキン選択の色丸 */
+  .skin-dot{
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.3);
+    cursor: pointer;
+    transition: .15s;
+  }
+  .skin-dot.active{
+    transform: scale(1.18);
+    box-shadow: 0 0 12px currentColor;
+    border-color: #fff;
+  }
+
+  /* メインボタン（スタート・リスタートなど） */
+  .btn{
+    margin-top: 16px;
+    padding: 13px 34px;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #02030a;
+    background: linear-gradient(180deg, #6cffd6, var(--neon-cyan));
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    box-shadow: 0 0 18px rgba(46,242,255,0.7);
+  }
+  .btn:active{ transform: translateY(1px); }
+
+  .btn-ghost{
+    background: transparent;
+    color: var(--neon-cyan);
+    border: 1.5px solid var(--neon-cyan);
+    box-shadow: none;
+    font-size: 15px;
+    padding: 10px 22px;
+  }
+
+  /* ランキング表示 */
+  .ranking{
+    width: min(320px, 90%);
+    margin: 10px auto 0;
+    font-size: 14px;
+    text-align: left;
+  }
+  .ranking li{
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 8px;
+    border-bottom: 1px dashed rgba(255,255,255,0.15);
+  }
+  .ranking li span:first-child{ color: var(--neon-yellow); }
+
+  /* =========================================================
+     スマホ用タッチコントロール（大きめボタン）
+     ========================================================= */
+  #touch-controls{
+    width: min(480px, 96vw);
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .pad{
+    flex: 1;
+    height: 78px;            /* スマホでも押しやすい大きさ */
+    font-size: 22px;
+    font-weight: 800;
+    color: #fff;
+    background: rgba(255,255,255,0.06);
+    border: 2px solid rgba(255,255,255,0.25);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    touch-action: none;
+  }
+  .pad:active{ background: rgba(46,242,255,0.22); border-color: var(--neon-cyan); }
+  .pad.fire{ color: var(--neon-pink); border-color: rgba(255,61,240,0.5); }
+
+  /* 上部の小さな操作ヒント */
+  .hint{
+    font-size: 11px;
+    color: #6f7aa8;
+    text-align: center;
+    margin: 0;
+  }
+</style>
+</head>
+<body>
+<div id="game-wrap">
+
+  <!-- ゲーム画面（Canvas）と各種オーバーレイ -->
+  <div id="stage-area">
+    <!-- 内部解像度は固定480x720。表示サイズはJSで画面に合わせて拡大縮小 -->
+    <canvas id="game" width="480" height="720"></canvas>
+
+    <!-- スタート画面 -->
+    <div id="screen-start" class="overlay">
+      <h1 class="title">NEON INVADERS</h1>
+      <p class="subtitle">★ オリジナル宇宙シューティング ★</p>
+
+      <div class="panel">
+        <h3>難易度を選択</h3>
+        <div class="choice-row" id="difficulty-row">
+          <div class="choice" data-diff="easy">EASY</div>
+          <div class="choice active" data-diff="normal">NORMAL</div>
+          <div class="choice" data-diff="hard">HARD</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>機体カラー（スキン）</h3>
+        <div class="choice-row" id="skin-row"><!-- JSで色丸を生成 --></div>
+      </div>
+
+      <div class="panel">
+        <h3>サウンド</h3>
+        <div class="choice-row">
+          <div class="choice active" id="sound-toggle">🔊 ON</div>
+        </div>
+      </div>
+
+      <button class="btn" id="btn-start">ゲームスタート</button>
+
+      <!-- ローカルのスコアランキング -->
+      <div class="panel">
+        <h3>ローカルランキング TOP5</h3>
+        <ol class="ranking" id="ranking-start"></ol>
+      </div>
+    </div>
+
+    <!-- ポーズ画面 -->
+    <div id="screen-pause" class="overlay hidden">
+      <h1 class="title" style="color:var(--neon-yellow);text-shadow:0 0 12px var(--neon-yellow)">PAUSE</h1>
+      <p class="subtitle">一時停止中</p>
+      <button class="btn" id="btn-resume">再開する</button>
+      <button class="btn btn-ghost" id="btn-quit">タイトルへ戻る</button>
+    </div>
+
+    <!-- ゲームオーバー画面 -->
+    <div id="screen-over" class="overlay hidden">
+      <h1 class="title" style="color:var(--neon-pink);text-shadow:0 0 12px var(--neon-pink)">GAME OVER</h1>
+      <p class="subtitle" id="over-reason">敵に侵略されました…</p>
+      <div style="font-size:20px;margin:6px 0">SCORE: <b id="over-score" style="color:var(--neon-cyan)">0</b></div>
+      <div style="font-size:14px;color:#9fb6ff" id="over-best">HI-SCORE: 0</div>
+      <div class="panel">
+        <ol class="ranking" id="ranking-over"></ol>
+      </div>
+      <button class="btn" id="btn-restart">もう一度プレイ</button>
+      <button class="btn btn-ghost" id="btn-title">タイトルへ</button>
+    </div>
+  </div>
+
+  <!-- スマホ用の大きなボタン（PCでも使用可） -->
+  <div id="touch-controls">
+    <div class="pad" id="pad-left">◀ 左</div>
+    <div class="pad fire" id="pad-fire">● 発射</div>
+    <div class="pad" id="pad-right">右 ▶</div>
+  </div>
+  <p class="hint">PC: ←/A 左　→/D 右　Space 発射　P 一時停止</p>
+</div>
+
+<script>
+"use strict";
+/* =============================================================
+   NEON INVADERS  ―  1ファイル完結の2Dシューティング
+   読みやすいように「設定 → 部品 → 更新 → 描画 → ループ」の順に整理しています。
+   初心者の方向けに、各関数の役割をコメントで説明しています。
+   ============================================================= */
+
+/* -------------------------------------------------------------
+   0. 基本のショートカット（よく使う関数をまとめる）
+   ------------------------------------------------------------- */
+const $  = (id) => document.getElementById(id);   // id検索を短く書くため
+const canvas = $("game");
+const ctx = canvas.getContext("2d");
+const W = canvas.width;   // ゲーム内部の横幅（固定480）
+const H = canvas.height;  // ゲーム内部の高さ（固定720）
+
+// 乱数ヘルパー（min以上max未満）
+function rand(min, max){ return Math.random() * (max - min) + min; }
+// 整数の乱数
+function randInt(min, max){ return Math.floor(rand(min, max + 1)); }
+// 四角形どうしが重なっているか判定（当たり判定の基本）
+function hit(a, b){
+  return a.x < b.x + b.w && a.x + a.w > b.x &&
+         a.y < b.y + b.h && a.y + a.h > b.y;
+}
+// 値を範囲内に収める
+function clamp(v, lo, hi){ return v < lo ? lo : (v > hi ? hi : v); }
+
+/* -------------------------------------------------------------
+   1. ゲーム全体の設定（難易度・スキンなど）
+   ------------------------------------------------------------- */
+
+// 難易度ごとの設定値（数字を変えるとバランス調整できます）
+const DIFFICULTY = {
+  easy:   { lives: 5, enemySpeed: 0.75, fireRate: 0.55, bulletSpeed: 0.8, label: "EASY"   },
+  normal: { lives: 3, enemySpeed: 1.0,  fireRate: 1.0,  bulletSpeed: 1.0, label: "NORMAL" },
+  hard:   { lives: 2, enemySpeed: 1.35, fireRate: 1.6,  bulletSpeed: 1.25, label: "HARD"  },
+};
+
+// 選べる機体カラー（スキン）
+const SKINS = ["#2ef2ff", "#45ff8f", "#ffe14d", "#ff7a59", "#b06bff"];
+
+// 敵の種類ごとの設定
+const ENEMY_TYPES = {
+  normal: { hp: 1, score: 100,  color: "#2ef2ff", w: 30, h: 22 }, // 普通の敵
+  tough:  { hp: 3, score: 250,  color: "#ff3df0", w: 34, h: 26 }, // 少し硬い敵
+  rare:   { hp: 1, score: 1000, color: "#ffe14d", w: 28, h: 22 }, // 高得点のレア敵
+};
+
+// プレイヤーが下から何pxの位置にいるか
+const PLAYER_Y = H - 70;
+
+/* -------------------------------------------------------------
+   2. サウンド（Web Audio APIで簡単な効果音を生成）
+   外部の音ファイルを使わず、その場で音を合成します。
+   ------------------------------------------------------------- */
+const Sound = {
+  ctx: null,
+  enabled: true,
+  // 最初のユーザー操作で音を有効化（ブラウザの仕様対応）
+  init(){
+    if(!this.ctx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(AC) this.ctx = new AC();
+    }
+    if(this.ctx && this.ctx.state === "suspended") this.ctx.resume();
+  },
+  // 単純なビープ音を鳴らす
+  beep(freq, dur, type = "square", vol = 0.15){
+    if(!this.enabled || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + dur); // 音をフェードアウト
+    osc.connect(gain).connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + dur);
+  },
+  shoot(){ this.beep(880, 0.08, "square", 0.08); },              // 弾発射
+  explosion(){                                                    // 爆発（少しノイズっぽく）
+    this.beep(140, 0.25, "sawtooth", 0.18);
+    this.beep(90, 0.3, "triangle", 0.12);
+  },
+  hit(){ this.beep(220, 0.18, "sawtooth", 0.2); },               // 被弾
+  power(){ this.beep(660, 0.12, "sine", 0.2); this.beep(990, 0.12, "sine", 0.18); }, // アイテム取得
+  stage(){ this.beep(523, 0.12, "sine"); this.beep(784, 0.16, "sine"); }, // ステージ開始
+};
+
+/* -------------------------------------------------------------
+   3. 入力管理（キーボード & タッチ）
+   ------------------------------------------------------------- */
+const input = { left: false, right: false, fire: false };
+
+// キーボード操作（PC向け）
+window.addEventListener("keydown", (e) => {
+  if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"," "].includes(e.key)) e.preventDefault();
+  switch(e.key){
+    case "ArrowLeft": case "a": case "A": input.left  = true; break;
+    case "ArrowRight":case "d": case "D": input.right = true; break;
+    case " ": input.fire = true; break;
+    case "p": case "P": togglePause(); break;
+  }
+});
+window.addEventListener("keyup", (e) => {
+  switch(e.key){
+    case "ArrowLeft": case "a": case "A": input.left  = false; break;
+    case "ArrowRight":case "d": case "D": input.right = false; break;
+    case " ": input.fire = false; break;
+  }
+});
+
+// タッチ操作（スマホ向け・押している間だけ有効）
+function bindPad(el, key){
+  const on  = (e) => { e.preventDefault(); input[key] = true;  Sound.init(); };
+  const off = (e) => { e.preventDefault(); input[key] = false; };
+  el.addEventListener("touchstart", on,  { passive:false });
+  el.addEventListener("touchend",   off, { passive:false });
+  el.addEventListener("touchcancel",off, { passive:false });
+  // マウスでも使えるように（PCでクリックしても動く）
+  el.addEventListener("mousedown", on);
+  el.addEventListener("mouseup",   off);
+  el.addEventListener("mouseleave",off);
+}
+bindPad($("pad-left"),  "left");
+bindPad($("pad-right"), "right");
+bindPad($("pad-fire"),  "fire");
+
+/* -------------------------------------------------------------
+   4. ゲームの状態（state）をひとつのオブジェクトで管理
+   ------------------------------------------------------------- */
+let state;        // ゲーム中の全データ
+let scene = "start"; // "start" | "intro" | "playing" | "paused" | "over"
+let settings = { difficulty: "normal", skin: SKINS[0] };
+
+// 新しいゲームを初期化する
+function newGame(){
+  const d = DIFFICULTY[settings.difficulty];
+  state = {
+    player: {
+      x: W/2 - 18, y: PLAYER_Y, w: 36, h: 24,
+      speed: 5, color: settings.skin,
+    },
+    bullets: [],        // プレイヤーの弾
+    enemyBullets: [],   // 敵の弾
+    enemies: [],        // 敵の配列
+    boss: null,         // ボス（ボスステージのみ）
+    powerups: [],       // パワーアップアイテム
+    explosions: [],     // 爆発エフェクト
+    shields: [],        // シールドブロック（障害物）
+    stars: makeStars(), // 背景の流れる星
+    // ステータス
+    lives: d.lives,
+    score: 0,
+    stage: 1,
+    // パワーアップ効果の残り時間（秒）
+    rapidTime: 0, doubleTime: 0, barrierTime: 0,
+    // コンボ
+    combo: 0, comboTimer: 0,
+    // 内部タイマー
+    fireCooldown: 0,
+    enemyDir: 1,        // 敵集団の移動方向（1=右, -1=左）
+    introTimer: 0,      // ステージ開始演出の残り時間
+    introText: "",
+    flashTimer: 0,      // 被弾時の画面フラッシュ
+    movePattern: 0,     // 敵の動きパターン
+  };
+}
+
+/* -------------------------------------------------------------
+   5. 各部品を作る関数（星・敵・シールド など）
+   ------------------------------------------------------------- */
+
+// 背景の星を作る
+function makeStars(){
+  const stars = [];
+  for(let i = 0; i < 70; i++){
+    stars.push({ x: rand(0, W), y: rand(0, H), size: rand(0.5, 2.2), speed: rand(0.3, 1.6) });
+  }
+  return stars;
+}
+
+// シールドブロック（障害物）を並べる
+function makeShields(){
+  const shields = [];
+  const blocks = 4;                 // 障害物の数
+  const gap = W / blocks;
+  for(let b = 0; b < blocks; b++){
+    const baseX = gap * b + gap/2 - 24;
+    // 1つの障害物を小さなブロックの集合で表現（壊れていく演出）
+    for(let r = 0; r < 2; r++){
+      for(let c = 0; c < 4; c++){
+        shields.push({ x: baseX + c*12, y: H - 180 + r*12, w: 12, h: 12, hp: 3 });
+      }
+    }
+  }
+  return shields;
+}
+
+// ステージの敵を作る（ボスステージかどうかで分岐）
+function setupStage(){
+  const s = state;
+  s.enemies = [];
+  s.boss = null;
+  s.enemyBullets = [];
+  s.enemyDir = 1;
+  s.movePattern = (s.stage - 1) % 3;   // 0,1,2 の動きパターンを切り替え
+  s.shields = makeShields();
+
+  // 5ステージごとにボス出現
+  if(s.stage % 5 === 0){
+    s.boss = {
+      x: W/2 - 50, y: 60, w: 100, h: 60,
+      hp: 30 + s.stage * 6, maxHp: 30 + s.stage * 6,
+      dir: 1, speed: 1.4 + s.stage * 0.05,
+      shootTimer: 0, color: "#ff3df0",
+    };
+    s.introText = "BOSS STAGE!";
+  } else {
+    // 通常ステージ：敵をグリッド状に並べる
+    const cols = 8;
+    const rows = Math.min(3 + Math.floor(s.stage / 2), 5); // ステージが進むと行が増える
+    const offsetX = (W - cols * 46) / 2 + 8;
+    for(let r = 0; r < rows; r++){
+      for(let c = 0; c < cols; c++){
+        // 行や確率で敵の種類を決める
+        let type = "normal";
+        if(r === 0 && Math.random() < 0.5) type = "tough";
+        if(Math.random() < 0.06) type = "rare";   // たまにレア敵
+        const def = ENEMY_TYPES[type];
+        s.enemies.push({
+          type, hp: def.hp, score: def.score, color: def.color,
+          w: def.w, h: def.h,
+          baseX: offsetX + c * 46, baseY: 70 + r * 40,
+          x: offsetX + c * 46, y: 70 + r * 40,
+          swayPhase: rand(0, Math.PI * 2),   // 動きパターン用の位相
+          alive: true,
+        });
+      }
+    }
+    s.introText = "STAGE " + s.stage;
+  }
+
+  // ステージ開始演出に入る
+  scene = "intro";
+  s.introTimer = 1.6;
+  Sound.stage();
+}
+
+/* -------------------------------------------------------------
+   6. プレイヤー関連の処理
+   ------------------------------------------------------------- */
+
+// プレイヤーの移動と弾発射
+function updatePlayer(dt){
+  const p = state.player;
+  // 左右移動
+  if(input.left)  p.x -= p.speed;
+  if(input.right) p.x += p.speed;
+  p.x = clamp(p.x, 4, W - p.w - 4); // 画面外に出ないようにする
+
+  // 発射クールダウンを減らす
+  state.fireCooldown -= dt;
+
+  // 発射ボタンが押されていてクールダウンが終わっていたら撃つ
+  if(input.fire && state.fireCooldown <= 0){
+    const rapid = state.rapidTime > 0;            // 連射アップ中か
+    state.fireCooldown = rapid ? 0.12 : 0.32;     // 連射中は間隔を短く
+
+    if(state.doubleTime > 0){
+      // 弾が2発になるパワーアップ中
+      spawnBullet(p.x + 6, p.y);
+      spawnBullet(p.x + p.w - 10, p.y);
+    } else {
+      spawnBullet(p.x + p.w/2 - 2, p.y);
+    }
+    Sound.shoot();
+  }
+}
+
+// プレイヤーの弾を1発作る
+function spawnBullet(x, y){
+  state.bullets.push({ x, y, w: 4, h: 12, speed: 9 });
+}
+
+/* -------------------------------------------------------------
+   7. 弾の更新（プレイヤー弾・敵弾）
+   ------------------------------------------------------------- */
+function updateBullets(){
+  const s = state;
+
+  // プレイヤーの弾（上へ進む）
+  for(const b of s.bullets) b.y -= b.speed;
+  // 画面外の弾を削除
+  s.bullets = s.bullets.filter(b => b.y + b.h > 0);
+
+  // 敵の弾（下へ進む）
+  const bSpeed = DIFFICULTY[settings.difficulty].bulletSpeed;
+  for(const b of s.enemyBullets) b.y += b.speed * bSpeed;
+  s.enemyBullets = s.enemyBullets.filter(b => b.y < H);
+}
+
+/* -------------------------------------------------------------
+   8. 敵の更新（集団移動・動きパターン・攻撃）
+   ------------------------------------------------------------- */
+function updateEnemies(dt){
+  const s = state;
+  const alive = s.enemies.filter(e => e.alive);
+  if(alive.length === 0 && !s.boss) return; // 敵がいなければ何もしない
+
+  const d = DIFFICULTY[settings.difficulty];
+  // 残りが少ないほど速くなる（昔ながらの加速演出）
+  const speedUp = 1 + (1 - alive.length / Math.max(1, s.enemies.length)) * 1.5;
+  const baseSpeed = (0.6 + s.stage * 0.12) * d.enemySpeed * speedUp;
+
+  // 集団が端に着いたかチェック
+  let hitEdge = false;
+  for(const e of alive){
+    if(e.x <= 4 || e.x + e.w >= W - 4){ hitEdge = true; break; }
+  }
+  if(hitEdge){
+    s.enemyDir *= -1;                 // 進行方向を反転
+    for(const e of s.enemies){ if(e.alive) e.baseY += 18; } // 少し下に降りる
+  }
+
+  // 各敵を動かす（パターンごとに動きを変える）
+  for(const e of alive){
+    e.baseX += s.enemyDir * baseSpeed;
+    e.swayPhase += dt * 3;
+
+    if(s.movePattern === 0){
+      // パターン0：そのまま横移動
+      e.x = e.baseX; e.y = e.baseY;
+    } else if(s.movePattern === 1){
+      // パターン1：左右にゆらゆら揺れる
+      e.x = e.baseX + Math.sin(e.swayPhase) * 10;
+      e.y = e.baseY;
+    } else {
+      // パターン2：上下に波打つ
+      e.x = e.baseX;
+      e.y = e.baseY + Math.sin(e.swayPhase) * 8;
+    }
+
+    // 敵が下まで到達したらゲームオーバー
+    if(e.y + e.h >= PLAYER_Y){
+      gameOver("敵に侵略されました…");
+      return;
+    }
+
+    // 敵がランダムで弾を撃つ
+    const fireChance = 0.0006 * d.fireRate * (1 + s.stage * 0.15);
+    if(Math.random() < fireChance){
+      s.enemyBullets.push({ x: e.x + e.w/2 - 2, y: e.y + e.h, w: 4, h: 10, speed: 4 });
+    }
+  }
+}
+
+// ボスの更新
+function updateBoss(dt){
+  const s = state, boss = s.boss;
+  if(!boss) return;
+
+  // 左右に往復移動
+  boss.x += boss.dir * boss.speed;
+  if(boss.x <= 4 || boss.x + boss.w >= W - 4) boss.dir *= -1;
+
+  // 一定間隔で複数の弾を撃つ
+  boss.shootTimer -= dt;
+  if(boss.shootTimer <= 0){
+    boss.shootTimer = 1.1 - Math.min(0.6, s.stage * 0.03);
+    const cx = boss.x + boss.w/2;
+    // 3方向（扇状）に発射
+    for(const vx of [-1.5, 0, 1.5]){
+      s.enemyBullets.push({ x: cx - 2, y: boss.y + boss.h, w: 5, h: 12, speed: 4, vx });
+    }
+  }
+}
+
+/* -------------------------------------------------------------
+   9. パワーアップアイテム
+   ------------------------------------------------------------- */
+
+// 敵を倒したとき、低確率でアイテムを落とす
+function maybeDropPowerup(x, y){
+  if(Math.random() < 0.12){
+    const kinds = ["rapid", "double", "barrier"];
+    const kind = kinds[randInt(0, 2)];
+    state.powerups.push({ x: x - 9, y, w: 18, h: 18, speed: 1.8, kind });
+  }
+}
+
+// アイテムの落下と取得判定
+function updatePowerups(dt){
+  const s = state, p = s.player;
+  for(const it of s.powerups) it.y += it.speed;
+  // 取得したアイテムの効果を適用
+  s.powerups = s.powerups.filter(it => {
+    if(hit(it, p)){
+      if(it.kind === "rapid")   s.rapidTime  = 8;   // 連射アップ8秒
+      if(it.kind === "double")  s.doubleTime = 10;  // 2連弾10秒
+      if(it.kind === "barrier") s.barrierTime= 7;   // バリア7秒
+      Sound.power();
+      return false; // 取得したので消す
+    }
+    return it.y < H; // 画面外なら消す
+  });
+
+  // 効果時間を減らす
+  s.rapidTime   = Math.max(0, s.rapidTime   - dt);
+  s.doubleTime  = Math.max(0, s.doubleTime  - dt);
+  s.barrierTime = Math.max(0, s.barrierTime - dt);
+}
+
+/* -------------------------------------------------------------
+   10. 当たり判定（弾と敵、弾とプレイヤー、シールドなど）
+   ------------------------------------------------------------- */
+function checkCollisions(){
+  const s = state, p = s.player;
+
+  // --- プレイヤーの弾 × 敵 ---
+  for(const b of s.bullets){
+    for(const e of s.enemies){
+      if(!e.alive) continue;
+      if(hit(b, e)){
+        e.hp--;
+        b.dead = true;                  // 弾を消す
+        if(e.hp <= 0){
+          e.alive = false;
+          addScore(e.score);            // スコア加算（コンボ込み）
+          addCombo();
+          spawnExplosion(e.x + e.w/2, e.y + e.h/2, e.color);
+          maybeDropPowerup(e.x + e.w/2, e.y);
+          Sound.explosion();
+        } else {
+          Sound.hit();
+        }
+        break;
+      }
+    }
+  }
+
+  // --- プレイヤーの弾 × ボス ---
+  if(s.boss){
+    for(const b of s.bullets){
+      if(b.dead) continue;
+      if(hit(b, s.boss)){
+        s.boss.hp--;
+        b.dead = true;
+        spawnExplosion(b.x, b.y, "#ffe14d", 4);
+        if(s.boss.hp <= 0){
+          // ボス撃破！派手に爆発
+          for(let i = 0; i < 14; i++){
+            spawnExplosion(s.boss.x + rand(0, s.boss.w), s.boss.y + rand(0, s.boss.h), "#ff3df0");
+          }
+          addScore(5000);
+          Sound.explosion();
+          s.boss = null;
+        }
+      }
+    }
+  }
+
+  // --- 弾 × シールドブロック（プレイヤー弾・敵弾どちらも防ぐ）---
+  for(const blk of s.shields){
+    for(const b of s.bullets){
+      if(!b.dead && hit(b, blk)){ b.dead = true; blk.hp--; }
+    }
+    for(const b of s.enemyBullets){
+      if(!b.dead && hit(b, blk)){ b.dead = true; blk.hp--; }
+    }
+  }
+  s.shields = s.shields.filter(blk => blk.hp > 0); // 壊れたブロックを削除
+
+  // 消えるべき弾を取り除く
+  s.bullets = s.bullets.filter(b => !b.dead);
+
+  // --- 敵の弾 × プレイヤー ---
+  for(const b of s.enemyBullets){
+    if(b.vx) b.x += b.vx;             // ボス弾は斜めに動く
+    if(hit(b, p)){
+      b.dead = true;
+      if(s.barrierTime > 0){
+        // バリア中はダメージを受けない
+        spawnExplosion(p.x + p.w/2, p.y, "#45ff8f", 5);
+        Sound.hit();
+      } else {
+        damagePlayer();
+      }
+    }
+  }
+  s.enemyBullets = s.enemyBullets.filter(b => !b.dead);
+}
+
+// プレイヤーがダメージを受けたとき
+function damagePlayer(){
+  const s = state;
+  s.lives--;
+  s.combo = 0; s.comboTimer = 0;     // コンボはリセット
+  s.flashTimer = 0.3;                // 画面フラッシュ
+  Sound.explosion();
+  spawnExplosion(s.player.x + s.player.w/2, s.player.y, s.player.color);
+  if(s.lives <= 0) gameOver("機体が破壊されました…");
+}
+
+/* -------------------------------------------------------------
+   11. スコアとコンボ
+   ------------------------------------------------------------- */
+function addScore(base){
+  // コンボ数に応じて倍率アップ（最大8倍）
+  const mult = Math.min(8, 1 + Math.floor(state.combo / 3));
+  state.score += base * mult;
+}
+function addCombo(){
+  state.combo++;
+  state.comboTimer = 2.2; // 2.2秒以内に次を倒せばコンボ継続
+}
+function updateCombo(dt){
+  if(state.comboTimer > 0){
+    state.comboTimer -= dt;
+    if(state.comboTimer <= 0) state.combo = 0; // 時間切れでリセット
+  }
+}
+
+/* -------------------------------------------------------------
+   12. 爆発エフェクト（小さな破片を飛ばす）
+   ------------------------------------------------------------- */
+function spawnExplosion(x, y, color, count = 10){
+  for(let i = 0; i < count; i++){
+    const a = rand(0, Math.PI * 2);
+    const sp = rand(1, 4);
+    state.explosions.push({
+      x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp,
+      life: 1, color,
+    });
+  }
+}
+function updateExplosions(dt){
+  for(const p of state.explosions){
+    p.x += p.vx; p.y += p.vy;
+    p.life -= dt * 2.2; // だんだん消える
+  }
+  state.explosions = state.explosions.filter(p => p.life > 0);
+}
+
+/* -------------------------------------------------------------
+   13. 背景の星を流す
+   ------------------------------------------------------------- */
+function updateStars(){
+  for(const st of state.stars){
+    st.y += st.speed;
+    if(st.y > H){ st.y = 0; st.x = rand(0, W); } // 下まで行ったら上に戻す
+  }
+}
+
+/* -------------------------------------------------------------
+   14. ステージクリア判定
+   ------------------------------------------------------------- */
+function checkStageClear(){
+  const s = state;
+  const enemiesLeft = s.enemies.some(e => e.alive);
+  if(!enemiesLeft && !s.boss){
+    // 全滅したら次のステージへ
+    s.stage++;
+    setupStage();
+  }
+}
+
+/* =============================================================
+   15. メインの更新処理（playing中だけ呼ばれる）
+   ============================================================= */
+function update(dt){
+  updateStars();
+  updatePlayer(dt);
+  updateBullets();
+  updateEnemies(dt);
+  updateBoss(dt);
+  updatePowerups(dt);
+  updateExplosions(dt);
+  updateCombo(dt);
+  checkCollisions();
+  checkStageClear();
+  if(state.flashTimer > 0) state.flashTimer -= dt;
+}
+
+/* =============================================================
+   16. 描画処理（絵を描く部分）
+   ============================================================= */
+
+// ネオン風に光らせて図形を描くための共通設定
+function neon(color, blur = 12){
+  ctx.shadowColor = color;
+  ctx.shadowBlur = blur;
+  ctx.fillStyle = color;
+  ctx.strokeStyle = color;
+}
+function resetShadow(){ ctx.shadowBlur = 0; }
+
+// 背景（宇宙と星）
+function drawBackground(){
+  ctx.fillStyle = "#02030a";
+  ctx.fillRect(0, 0, W, H);
+  for(const st of state.stars){
+    ctx.globalAlpha = clamp(st.size / 2.2, 0.2, 1);
+    ctx.fillStyle = "#aab8ff";
+    ctx.fillRect(st.x, st.y, st.size, st.size);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// プレイヤー（三角形の宇宙船）
+function drawPlayer(){
+  const p = state.player;
+  neon(p.color, 14);
+  ctx.beginPath();
+  ctx.moveTo(p.x + p.w/2, p.y);          // 先端
+  ctx.lineTo(p.x, p.y + p.h);            // 左下
+  ctx.lineTo(p.x + p.w, p.y + p.h);      // 右下
+  ctx.closePath();
+  ctx.fill();
+  // バリア中は周りに丸いシールドを描く
+  if(state.barrierTime > 0){
+    neon("#45ff8f", 16);
+    ctx.globalAlpha = 0.5 + Math.sin(performance.now()/120)*0.2;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(p.x + p.w/2, p.y + p.h/2, 28, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  resetShadow();
+}
+
+// 敵を描く（種類で形と色を変える）
+function drawEnemies(){
+  for(const e of state.enemies){
+    if(!e.alive) continue;
+    neon(e.color, 10);
+    if(e.type === "tough"){
+      // 硬い敵：四角
+      ctx.fillRect(e.x, e.y, e.w, e.h);
+    } else if(e.type === "rare"){
+      // レア敵：ひし形
+      ctx.beginPath();
+      ctx.moveTo(e.x + e.w/2, e.y);
+      ctx.lineTo(e.x + e.w, e.y + e.h/2);
+      ctx.lineTo(e.x + e.w/2, e.y + e.h);
+      ctx.lineTo(e.x, e.y + e.h/2);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      // 普通の敵：丸み四角
+      ctx.fillRect(e.x, e.y, e.w, e.h);
+      ctx.fillStyle = "#02030a";
+      ctx.fillRect(e.x + 6, e.y + 7, 5, 5);          // 目
+      ctx.fillRect(e.x + e.w - 11, e.y + 7, 5, 5);
+    }
+  }
+  resetShadow();
+}
+
+// ボスを描く
+function drawBoss(){
+  const boss = state.boss;
+  if(!boss) return;
+  neon(boss.color, 18);
+  ctx.fillRect(boss.x, boss.y, boss.w, boss.h);
+  ctx.fillStyle = "#02030a";
+  ctx.fillRect(boss.x + 20, boss.y + 20, 12, 12);
+  ctx.fillRect(boss.x + boss.w - 32, boss.y + 20, 12, 12);
+  resetShadow();
+  // HPバー
+  const ratio = boss.hp / boss.maxHp;
+  ctx.fillStyle = "#330";
+  ctx.fillRect(boss.x, boss.y - 10, boss.w, 5);
+  ctx.fillStyle = "#ff3df0";
+  ctx.fillRect(boss.x, boss.y - 10, boss.w * ratio, 5);
+}
+
+// 弾を描く
+function drawBullets(){
+  neon("#ffffff", 8);
+  for(const b of state.bullets) ctx.fillRect(b.x, b.y, b.w, b.h);
+  neon("#ff6b6b", 8);
+  for(const b of state.enemyBullets) ctx.fillRect(b.x, b.y, b.w, b.h);
+  resetShadow();
+}
+
+// シールドブロックを描く（HPで色が変わる）
+function drawShields(){
+  for(const blk of state.shields){
+    const c = blk.hp === 3 ? "#45ff8f" : blk.hp === 2 ? "#ffe14d" : "#ff7a59";
+    neon(c, 6);
+    ctx.fillRect(blk.x, blk.y, blk.w - 1, blk.h - 1);
+  }
+  resetShadow();
+}
+
+// パワーアップアイテムを描く
+function drawPowerups(){
+  for(const it of state.powerups){
+    const c = it.kind === "rapid" ? "#2ef2ff" : it.kind === "double" ? "#ffe14d" : "#45ff8f";
+    const label = it.kind === "rapid" ? "R" : it.kind === "double" ? "D" : "B";
+    neon(c, 12);
+    ctx.fillRect(it.x, it.y, it.w, it.h);
+    resetShadow();
+    ctx.fillStyle = "#02030a";
+    ctx.font = "bold 13px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(label, it.x + it.w/2, it.y + it.h - 4);
+  }
+}
+
+// 爆発エフェクトを描く
+function drawExplosions(){
+  for(const p of state.explosions){
+    ctx.globalAlpha = clamp(p.life, 0, 1);
+    neon(p.color, 10);
+    ctx.fillRect(p.x, p.y, 3, 3);
+  }
+  ctx.globalAlpha = 1;
+  resetShadow();
+}
+
+// 画面上部のステータス（スコア・ライフ・ステージ・コンボ）
+function drawHUD(){
+  ctx.textAlign = "left";
+  ctx.font = "bold 16px sans-serif";
+  neon("#2ef2ff", 6);
+  ctx.fillText("SCORE " + state.score, 10, 24);
+  resetShadow();
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#9fb6ff";
+  ctx.fillText("STAGE " + state.stage, W/2, 24);
+
+  // ライフをハートのように丸で表示
+  ctx.textAlign = "right";
+  neon("#ff3df0", 6);
+  let lifeStr = "";
+  for(let i = 0; i < state.lives; i++) lifeStr += "♥";
+  ctx.fillText(lifeStr || " ", W - 10, 24);
+  resetShadow();
+
+  // コンボ表示（2以上のときだけ）
+  if(state.combo >= 2){
+    const mult = Math.min(8, 1 + Math.floor(state.combo / 3));
+    ctx.textAlign = "center";
+    neon("#ffe14d", 10);
+    ctx.font = "bold 18px sans-serif";
+    ctx.fillText(state.combo + " COMBO  x" + mult, W/2, 50);
+    resetShadow();
+  }
+
+  // パワーアップの残り時間アイコン
+  let px = 10;
+  ctx.textAlign = "left";
+  ctx.font = "12px sans-serif";
+  const showTimer = (t, label, color) => {
+    if(t > 0){ ctx.fillStyle = color; ctx.fillText(label + " " + t.toFixed(1) + "s", px, H - 8); px += 86; }
+  };
+  showTimer(state.rapidTime,  "連射", "#2ef2ff");
+  showTimer(state.doubleTime, "2連弾", "#ffe14d");
+  showTimer(state.barrierTime,"バリア","#45ff8f");
+}
+
+// 低HP時の赤い点滅演出
+function drawLowHpWarning(){
+  if(state.lives === 1){
+    const a = (Math.sin(performance.now()/150) + 1) / 2 * 0.35;
+    ctx.fillStyle = "rgba(255,0,40," + a.toFixed(3) + ")";
+    ctx.fillRect(0, 0, W, H);
+  }
+  // 被弾直後の白フラッシュ
+  if(state.flashTimer > 0){
+    ctx.fillStyle = "rgba(255,255,255," + (state.flashTimer * 0.6).toFixed(2) + ")";
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+// ステージ開始演出（STAGE 1 など）
+function drawIntro(){
+  const t = state.introTimer;
+  ctx.globalAlpha = clamp(t, 0, 1);
+  ctx.textAlign = "center";
+  neon("#2ef2ff", 20);
+  ctx.font = "bold 40px sans-serif";
+  ctx.fillText(state.introText, W/2, H/2);
+  resetShadow();
+  ctx.globalAlpha = 1;
+}
+
+// すべてを描く（毎フレーム呼ばれる）
+function draw(){
+  drawBackground();
+  drawShields();
+  drawEnemies();
+  drawBoss();
+  drawPlayer();
+  drawBullets();
+  drawPowerups();
+  drawExplosions();
+  drawHUD();
+  drawLowHpWarning();
+  if(scene === "intro") drawIntro();
+}
+
+/* =============================================================
+   17. ゲームループ（時間を計算して update と draw を回す）
+   ============================================================= */
+let lastTime = 0;
+function loop(now){
+  const dt = Math.min(0.05, (now - lastTime) / 1000); // 経過秒（最大0.05に制限）
+  lastTime = now;
+
+  if(scene === "playing"){
+    update(dt);
+    draw();
+  } else if(scene === "intro"){
+    updateStars();           // 演出中も星は流す
+    draw();
+    state.introTimer -= dt;
+    if(state.introTimer <= 0) scene = "playing"; // 演出が終わったら開始
+  } else if(scene === "paused"){
+    draw();                  // 一時停止中は止めたまま表示
+  }
+  requestAnimationFrame(loop);
+}
+
+/* =============================================================
+   18. 画面遷移（スタート・ポーズ・ゲームオーバー）
+   ============================================================= */
+
+// ゲーム開始
+function startGame(){
+  Sound.init();
+  newGame();
+  setupStage();
+  hideAllScreens();
+}
+
+// 一時停止の切り替え
+function togglePause(){
+  if(scene === "playing"){
+    scene = "paused";
+    $("screen-pause").classList.remove("hidden");
+  } else if(scene === "paused"){
+    scene = "playing";
+    $("screen-pause").classList.add("hidden");
+  }
+}
+
+// ゲームオーバー処理
+function gameOver(reason){
+  scene = "over";
+  saveScore(state.score);                 // スコアを保存
+  $("over-reason").textContent = reason;
+  $("over-score").textContent = state.score;
+  $("over-best").textContent = "HI-SCORE: " + getHighScore();
+  renderRanking("ranking-over");
+  $("screen-over").classList.remove("hidden");
+}
+
+// すべてのオーバーレイを隠す
+function hideAllScreens(){
+  $("screen-start").classList.add("hidden");
+  $("screen-pause").classList.add("hidden");
+  $("screen-over").classList.add("hidden");
+}
+
+// タイトルへ戻る
+function goTitle(){
+  scene = "start";
+  hideAllScreens();
+  $("screen-start").classList.remove("hidden");
+  renderRanking("ranking-start");
+}
+
+/* =============================================================
+   19. ハイスコア・ランキングの保存（localStorageを使用）
+   ============================================================= */
+const STORE_KEY = "neon-invaders-ranking";
+
+// スコア一覧を読み込む
+function loadRanking(){
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
+  catch(e){ return []; }
+}
+// スコアを保存（上位だけ残す）
+function saveScore(score){
+  const list = loadRanking();
+  list.push(score);
+  list.sort((a, b) => b - a);          // 大きい順に並べ替え
+  const top = list.slice(0, 5);        // 上位5件
+  localStorage.setItem(STORE_KEY, JSON.stringify(top));
+}
+// 最高得点を取得
+function getHighScore(){
+  const list = loadRanking();
+  return list.length ? list[0] : 0;
+}
+// ランキングを画面に表示
+function renderRanking(elementId){
+  const list = loadRanking();
+  const ol = $(elementId);
+  ol.innerHTML = "";
+  if(list.length === 0){
+    ol.innerHTML = "<li><span>—</span><span>記録なし</span></li>";
+    return;
+  }
+  list.forEach((sc, i) => {
+    const li = document.createElement("li");
+    li.innerHTML = "<span>" + (i+1) + "位</span><span>" + sc + "</span>";
+    ol.appendChild(li);
+  });
+}
+
+/* =============================================================
+   20. UI（ボタンやスキン選択）の組み立て
+   ============================================================= */
+
+// 難易度ボタン
+$("difficulty-row").addEventListener("click", (e) => {
+  const el = e.target.closest(".choice");
+  if(!el) return;
+  settings.difficulty = el.dataset.diff;
+  document.querySelectorAll("#difficulty-row .choice").forEach(c => c.classList.remove("active"));
+  el.classList.add("active");
+});
+
+// スキン（機体カラー）の色丸を生成
+const skinRow = $("skin-row");
+SKINS.forEach((color, i) => {
+  const dot = document.createElement("div");
+  dot.className = "skin-dot" + (i === 0 ? " active" : "");
+  dot.style.background = color;
+  dot.style.color = color;
+  dot.addEventListener("click", () => {
+    settings.skin = color;
+    document.querySelectorAll(".skin-dot").forEach(d => d.classList.remove("active"));
+    dot.classList.add("active");
+  });
+  skinRow.appendChild(dot);
+});
+
+// 音のON/OFF切り替え
+$("sound-toggle").addEventListener("click", function(){
+  Sound.enabled = !Sound.enabled;
+  this.textContent = Sound.enabled ? "🔊 ON" : "🔇 OFF";
+  this.classList.toggle("active", Sound.enabled);
+  if(Sound.enabled) Sound.init();
+});
+
+// 各種ボタンに機能を割り当て
+$("btn-start").addEventListener("click", startGame);
+$("btn-restart").addEventListener("click", startGame);
+$("btn-resume").addEventListener("click", togglePause);
+$("btn-quit").addEventListener("click", goTitle);
+$("btn-title").addEventListener("click", goTitle);
+
+/* =============================================================
+   21. 画面サイズに合わせてキャンバスを拡大縮小（レスポンシブ）
+   ============================================================= */
+function fitCanvas(){
+  const ratio = W / H;                        // 480:720 = 2:3
+  const controls = 150;                        // 下のボタン分の余白
+  let maxW = window.innerWidth - 12;
+  let maxH = window.innerHeight - controls;
+  let w = maxW, h = w / ratio;
+  if(h > maxH){ h = maxH; w = h * ratio; }     // 高さがはみ出すなら高さ基準に
+  canvas.style.width  = Math.floor(w) + "px";
+  canvas.style.height = Math.floor(h) + "px";
+}
+window.addEventListener("resize", fitCanvas);
+window.addEventListener("orientationchange", fitCanvas);
+
+/* =============================================================
+   22. 起動！
+   ============================================================= */
+fitCanvas();
+renderRanking("ranking-start");
+requestAnimationFrame(loop);   // ゲームループ開始（最初はスタート画面）
+</script>
+</body>
+</html>

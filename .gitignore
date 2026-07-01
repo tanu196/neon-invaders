@@ -1,0 +1,11 @@
+# 依存パッケージ（Renderが自動で npm install するので不要）
+node_modules/
+
+# OS/エディタが作る一時ファイル
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+
+# 環境変数など
+.env
