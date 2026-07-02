@@ -116,6 +116,7 @@ const SETTINGS_KEY = "neon-invaders-settings";
 const IS_TOUCH = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
 settings.moveSpeed = IS_TOUCH ? 4 : 5;   // 1〜10段階
 settings.showControls = true;            // スマホ操作ボタンを表示するか
+settings.playerName = "";                // ランキング用のプレイヤー名（空なら「ゲスト」）
 // 保存された設定を読み込む
 function loadSettings(){
   try{
@@ -124,6 +125,7 @@ function loadSettings(){
       if(typeof saved.moveSpeed === "number") settings.moveSpeed = clamp(saved.moveSpeed, 1, 10);
       if(typeof saved.sound === "boolean") Sound.enabled = saved.sound;
       if(typeof saved.showControls === "boolean") settings.showControls = saved.showControls;
+      if(typeof saved.playerName === "string") settings.playerName = saved.playerName;
     }
   }catch(e){}
 }
@@ -133,6 +135,7 @@ function saveSettings(){
     moveSpeed: settings.moveSpeed,
     sound: Sound.enabled,
     showControls: settings.showControls,
+    playerName: settings.playerName,
   }));
 }
 // スライダーの値(1〜10)を実際の移動ピクセル数に変換（5でちょうど良い速さ）
@@ -517,9 +520,13 @@ function gameOver(reason){
   $("over-score").textContent = state.score;
   $("over-best").textContent = "HI-SCORE: " + getHighScore();
   renderRanking("ranking-over"); showScreen("screen-over");
+  // 全プレイヤー共通ランキングへ登録し、そのモードの上位を表示
+  const gmode = settings.difficulty;
+  submitGlobalScore(gmode, state.score).then(() => loadGlobalRanking(gmode, "ranking-global-over"));
 }
 function goTitle(){
   scene = "menu"; showScreen("screen-menu"); renderRanking("ranking-start");
+  loadGlobalRanking(globalMode, "ranking-global-menu");   // 全国ランキングも更新
 }
 
 const STORE_KEY = "neon-invaders-ranking";
@@ -535,6 +542,42 @@ function renderRanking(elementId){
   list.forEach((sc, i) => {
     const li = document.createElement("li");
     li.innerHTML = "<span>" + (i+1) + "位</span><span>" + sc + "</span>";
+    ol.appendChild(li);
+  });
+}
+
+// ===== 全プレイヤー共通ランキング（サーバー保存・モード別） =====
+let globalMode = "normal";   // メニューで表示中のモード
+
+// サーバーに自分のスコアを送る（1人プレイのゲームオーバー時）
+function submitGlobalScore(mode, score){
+  const name = settings.playerName || "ゲスト";
+  return fetch("/api/score", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode: mode, name: name, score: score }),
+  }).then(r => r.json()).catch(() => null);
+}
+
+// サーバーから共通ランキングを取得して表示する
+function loadGlobalRanking(mode, elementId){
+  const ol = $(elementId);
+  if(ol) ol.innerHTML = "<li><span>…</span><span>読込中</span></li>";
+  return fetch("/api/ranking?mode=" + encodeURIComponent(mode))
+    .then(r => r.json())
+    .then(data => renderGlobalRanking(elementId, data.list))
+    .catch(() => { if(ol) ol.innerHTML = "<li><span>—</span><span>サーバー未接続</span></li>"; });
+}
+
+// 取得したランキングを画面に並べる
+function renderGlobalRanking(elementId, list){
+  const ol = $(elementId); if(!ol) return;
+  ol.innerHTML = "";
+  if(!list || list.length === 0){ ol.innerHTML = "<li><span>—</span><span>まだ記録がありません</span></li>"; return; }
+  list.forEach((row, i) => {
+    const li = document.createElement("li");
+    const nm = row.name || "ゲスト";
+    li.innerHTML = "<span>" + (i+1) + "位 " + nm + "</span><span>" + row.score + "</span>";
     ol.appendChild(li);
   });
 }
@@ -581,6 +624,7 @@ function refreshSettingsUI(){
   $("set-sound").classList.toggle("active", Sound.enabled);
   $("set-controls").textContent = settings.showControls ? "表示 ON" : "表示 OFF";
   $("set-controls").classList.toggle("active", settings.showControls);
+  $("player-name").value = settings.playerName;
   applyControlsVisibility();
 }
 function openSettings(){ showScreen("screen-settings"); refreshSettingsUI(); }
@@ -614,6 +658,20 @@ $("set-sound").addEventListener("click", () => {
 $("set-controls").addEventListener("click", () => {
   settings.showControls = !settings.showControls;
   saveSettings(); refreshSettingsUI();
+});
+// プレイヤー名の入力（ランキング用）
+$("player-name").addEventListener("input", function(){
+  settings.playerName = this.value.slice(0, 12);
+  saveSettings();
+});
+// 全国ランキングのモード切り替えタブ
+document.querySelectorAll("#global-mode-tabs .choice").forEach(el => {
+  el.addEventListener("click", () => {
+    globalMode = el.dataset.gmode;
+    document.querySelectorAll("#global-mode-tabs .choice").forEach(c => c.classList.remove("active"));
+    el.classList.add("active");
+    loadGlobalRanking(globalMode, "ranking-global-menu");
+  });
 });
 
 $("btn-menu-solo").addEventListener("click", () => { Sound.init(); showScreen("screen-solo"); });
@@ -853,5 +911,6 @@ applyControlsVisibility();
 
 fitCanvas();
 renderRanking("ranking-start");
+loadGlobalRanking(globalMode, "ranking-global-menu");   // 起動時に全国ランキングを取得
 showScreen("screen-menu");
 requestAnimationFrame(loop);

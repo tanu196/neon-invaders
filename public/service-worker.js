@@ -6,7 +6,7 @@
    ============================================================= */
 
 // キャッシュの名前。ファイルを更新したら v3 → v4 と数字を上げると確実に更新される
-const CACHE = "neon-invaders-v8";
+const CACHE = "neon-invaders-v9";
 
 // 必ずキャッシュしたい重要ファイル（1つでも失敗するとSWは止まる）
 const CORE_ASSETS = [
@@ -47,8 +47,9 @@ self.addEventListener("activate", (e) => {
 // 取得：オンライン対戦の通信はキャッシュせず、それ以外はキャッシュ優先で返す
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
-  // Socket.IO の通信は常にネットワークを使う（キャッシュしない）
+  // Socket.IO / API の通信は常にネットワークを使う（キャッシュしない）
   if(url.pathname.startsWith("/socket.io")) return;
+  if(url.pathname.startsWith("/api")) return;
   e.respondWith(
     caches.match(e.request).then((cached) => {
       return cached || fetch(e.request).catch(() => caches.match("./index.html"));

@@ -29,7 +29,16 @@
       <button class="btn btn-ghost" id="btn-menu-settings">設定</button>
       <button class="btn btn-ghost" id="sound-toggle">🔊 音 ON</button>
       <div class="panel">
-        <h3>ローカルランキング TOP5</h3>
+        <h3>全国ランキング（モード別）</h3>
+        <div class="choice-row" id="global-mode-tabs">
+          <div class="choice" data-gmode="easy">EASY</div>
+          <div class="choice active" data-gmode="normal">NORMAL</div>
+          <div class="choice" data-gmode="hard">HARD</div>
+        </div>
+        <ol class="ranking" id="ranking-global-menu"></ol>
+      </div>
+      <div class="panel">
+        <h3>ローカルランキング TOP5（この端末）</h3>
         <ol class="ranking" id="ranking-start"></ol>
       </div>
     </div>
@@ -87,6 +96,10 @@
         <h3>スマホ操作ボタンの表示</h3>
         <div class="choice-row"><div class="choice active" id="set-controls">表示 ON</div></div>
       </div>
+      <div class="panel">
+        <h3>プレイヤー名（ランキング用）</h3>
+        <input id="player-name" maxlength="12" placeholder="ゲスト" style="width:100%;padding:10px;font-size:16px;text-align:center;border-radius:8px;border:1.5px solid #888;background:#0c1024;color:#fff">
+      </div>
       <button class="btn btn-ghost" id="btn-settings-back">戻る</button>
     </div>
 
@@ -130,7 +143,14 @@
       <p class="subtitle" id="over-reason">敵に侵略されました…</p>
       <div style="font-size:20px;margin:6px 0">SCORE: <b id="over-score" style="color:var(--neon-cyan)">0</b></div>
       <div style="font-size:14px;color:#9fb6ff" id="over-best">HI-SCORE: 0</div>
-      <div class="panel"><ol class="ranking" id="ranking-over"></ol></div>
+      <div class="panel">
+        <h3>全国ランキング</h3>
+        <ol class="ranking" id="ranking-global-over"></ol>
+      </div>
+      <div class="panel">
+        <h3>この端末の記録</h3>
+        <ol class="ranking" id="ranking-over"></ol>
+      </div>
       <button class="btn" id="btn-restart">もう一度プレイ</button>
       <button class="btn btn-ghost" id="btn-title">タイトルへ</button>
     </div>

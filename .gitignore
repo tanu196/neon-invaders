@@ -1,6 +1,9 @@
 # 依存パッケージ（Renderが自動で npm install するので不要）
 node_modules/
 
+# サーバーが生成する共通ランキングの保存ファイル
+rankings.json
+
 # OS/エディタが作る一時ファイル
 .DS_Store
 Thumbs.db
