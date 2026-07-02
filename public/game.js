@@ -507,8 +507,12 @@ function draw(){
 const OVERLAYS = ["screen-name","screen-menu","screen-solo","screen-howto","screen-settings","screen-online","screen-result","screen-pause","screen-over"];
 function showScreen(id){
   OVERLAYS.forEach(s => $(s).classList.toggle("hidden", s !== id));
+  document.body.classList.add("overlay-open");     // オーバーレイ表示中の目印（横画面で操作ボタンを隠す用）
 }
-function hideAllScreens(){ OVERLAYS.forEach(s => $(s).classList.add("hidden")); }
+function hideAllScreens(){
+  OVERLAYS.forEach(s => $(s).classList.add("hidden"));
+  document.body.classList.remove("overlay-open");
+}
 
 function startGame(){
   Sound.init(); newGame(); setupStage(); hideAllScreens();
@@ -616,8 +620,8 @@ $("sound-toggle").addEventListener("click", function(){
 function speedWord(v){ return v <= 3 ? "遅い" : (v <= 7 ? "普通" : "速い"); }
 // スマホ操作ボタンの表示/非表示を反映
 function applyControlsVisibility(){
-  const tc = $("touch-controls");
-  if(tc) tc.style.display = settings.showControls ? "flex" : "none";
+  // 操作ボタンの表示ON/OFFはbodyのクラスで制御（CSS側で表示/非表示を切り替え）
+  document.body.classList.toggle("controls-off", !settings.showControls);
 }
 // 設定画面の表示を今の設定に合わせて更新
 function refreshSettingsUI(){
@@ -904,9 +908,12 @@ function loop(now){
 
 function fitCanvas(){
   const ratio = W / H;
-  const controls = 150;
-  let maxW = window.innerWidth - 12;
-  let maxH = window.innerHeight - controls;
+  const landscape = window.innerWidth > window.innerHeight;   // 横画面かどうか
+  // 横画面は操作ボタンを左右端に置くので、縦の余白を減らし左右に操作ボタン分をあける
+  const reserveH = landscape ? 20 : 150;
+  const reserveW = landscape ? 230 : 12;
+  let maxW = window.innerWidth - reserveW;
+  let maxH = window.innerHeight - reserveH;
   let w = maxW, h = w / ratio;
   if(h > maxH){ h = maxH; w = h * ratio; }
   canvas.style.width  = Math.floor(w) + "px";
