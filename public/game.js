@@ -31,7 +31,7 @@ const DIFFICULTY = {
   normal: { lives: 3, enemySpeed: 1.0,  fireRate: 1.0,  bulletSpeed: 1.0, label: "NORMAL" },
   hard:   { lives: 2, enemySpeed: 1.35, fireRate: 1.6,  bulletSpeed: 1.25, label: "HARD"  },
 };
-const SKINS = ["#2ef2ff", "#45ff8f", "#ffe14d", "#ff7a59", "#b06bff"];
+const SKINS = ["#2ef2ff", "#45ff8f", "#ffe14d", "#ff7a59", "#b06bff", "#ff3df0"];
 const ENEMY_TYPES = {
   normal: { hp: 1, score: 100,  color: "#2ef2ff", w: 30, h: 22 },
   tough:  { hp: 3, score: 250,  color: "#ff3df0", w: 34, h: 26 },
