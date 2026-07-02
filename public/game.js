@@ -910,8 +910,8 @@ function fitCanvas(){
   const ratio = W / H;
   const landscape = window.innerWidth > window.innerHeight;   // 横画面かどうか
   // 横画面は操作ボタンを左右端に置くので、縦の余白を減らし左右に操作ボタン分をあける
-  const reserveH = landscape ? 20 : 150;
-  const reserveW = landscape ? 230 : 12;
+  const reserveH = landscape ? 6 : 150;
+  const reserveW = landscape ? 120 : 12;
   let maxW = window.innerWidth - reserveW;
   let maxH = window.innerHeight - reserveH;
   let w = maxW, h = w / ratio;
