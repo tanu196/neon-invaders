@@ -38,6 +38,7 @@ const ENEMY_TYPES = {
   rare:   { hp: 1, score: 1000, color: "#ffe14d", w: 28, h: 22 },
 };
 const PLAYER_Y = H - 70;
+const MAX_STAGE = 100;   // 最大ステージ。ここをクリアするとゲーム終了（クリア）
 
 const Sound = {
   ctx: null, enabled: true,
@@ -317,7 +318,7 @@ function checkCollisions(){
         if(s.boss.hp <= 0){
           for(let i = 0; i < 14; i++)
             spawnExplosion(s.boss.x + rand(0, s.boss.w), s.boss.y + rand(0, s.boss.h), "#ff3df0");
-          addScore(5000); Sound.explosion(); s.boss = null;
+          addScore(5000); Sound.explosion(); s.boss = null; break;   // ボスを消したら弾ループを抜ける（null参照でのフリーズ防止）
         }
       }
     }
@@ -367,7 +368,13 @@ function updateStars(){
 }
 function checkStageClear(){
   const s = state;
-  if(!s.enemies.some(e => e.alive) && !s.boss){ s.stage++; setupStage(); }
+  if(!s.enemies.some(e => e.alive) && !s.boss){
+    if(s.stage >= MAX_STAGE){                       // 最終ステージ(100)をクリアしたら終了
+      gameOver("STAGE " + MAX_STAGE + " 到達！ おめでとう！", true);
+      return;
+    }
+    s.stage++; setupStage();
+  }
 }
 function update(dt){
   updateStars(); updatePlayer(dt); updateBullets();
@@ -521,8 +528,19 @@ function togglePause(){
   if(scene === "playing"){ scene = "paused"; showScreen("screen-pause"); }
   else if(scene === "paused"){ scene = "playing"; $("screen-pause").classList.add("hidden"); }
 }
-function gameOver(reason){
+function gameOver(reason, isClear){
   scene = "over"; saveScore(state.score);
+  // 見出しをクリア/ゲームオーバーで切り替える（毎回設定して元に戻す）
+  const overTitle = $("screen-over").querySelector(".title");
+  if(isClear){
+    overTitle.textContent = "ALL CLEAR!";
+    overTitle.style.color = "var(--neon-green)";
+    overTitle.style.textShadow = "0 0 12px var(--neon-green)";
+  } else {
+    overTitle.textContent = "GAME OVER";
+    overTitle.style.color = "var(--neon-pink)";
+    overTitle.style.textShadow = "0 0 12px var(--neon-pink)";
+  }
   $("over-reason").textContent = reason;
   $("over-score").textContent = state.score;
   $("over-best").textContent = "HI-SCORE: " + getHighScore();
