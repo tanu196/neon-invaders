@@ -238,8 +238,11 @@ function updateEnemies(dt){
   const d = DIFFICULTY[settings.difficulty];
   const speedUp = 1 + (1 - alive.length / Math.max(1, s.enemies.length)) * 1.5;
   const baseSpeed = (0.6 + s.stage * 0.12) * d.enemySpeed * speedUp;
+  // 端の判定は「揺れを含む実際のx」ではなく、隊列位置 baseX で行う（揺れ幅ぶんの余白14pxを確保）
+  // こうすることでステージ2の横揺れでも端条件が連続成立せず、降下は壁に触れるたび1回だけになる
+  const EDGE_MARGIN = 14;
   let hitEdge = false;
-  for(const e of alive){ if(e.x <= 4 || e.x + e.w >= W - 4){ hitEdge = true; break; } }
+  for(const e of alive){ if(e.baseX <= EDGE_MARGIN || e.baseX + e.w >= W - EDGE_MARGIN){ hitEdge = true; break; } }
   if(hitEdge){ s.enemyDir *= -1; for(const e of s.enemies){ if(e.alive) e.baseY += 18; } }
   for(const e of alive){
     e.baseX += s.enemyDir * baseSpeed; e.swayPhase += dt * 3;
