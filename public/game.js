@@ -501,7 +501,7 @@ function draw(){
 /* =============================================================
    [C] 画面遷移とメニュー
    ============================================================= */
-const OVERLAYS = ["screen-menu","screen-solo","screen-howto","screen-settings","screen-online","screen-result","screen-pause","screen-over"];
+const OVERLAYS = ["screen-name","screen-menu","screen-solo","screen-howto","screen-settings","screen-online","screen-result","screen-pause","screen-over"];
 function showScreen(id){
   OVERLAYS.forEach(s => $(s).classList.toggle("hidden", s !== id));
 }
@@ -633,6 +633,21 @@ $("btn-pause-settings").addEventListener("click", openSettings);
 $("btn-settings-back").addEventListener("click", () => {
   // ポーズ中に開いたときはポーズ画面へ、それ以外はメニューへ戻る
   if(scene === "paused") showScreen("screen-pause"); else showScreen("screen-menu");
+});
+// 初回ユーザー名入力画面のボタン
+function finishNameSetup(){
+  Sound.init();
+  saveSettings();               // 入力した名前を保存
+  showScreen("screen-menu");    // メニューへ進む
+}
+$("btn-name-ok").addEventListener("click", () => {
+  const v = $("first-name-input").value.slice(0, 12).trim();
+  settings.playerName = v || "ゲスト";   // 空なら「ゲスト」
+  finishNameSetup();
+});
+$("btn-name-skip").addEventListener("click", () => {
+  settings.playerName = "ゲスト";
+  finishNameSetup();
 });
 // スライダーを動かすとすぐ反映（リアルタイム）
 $("speed-slider").addEventListener("input", function(){
@@ -912,5 +927,7 @@ applyControlsVisibility();
 fitCanvas();
 renderRanking("ranking-start");
 loadGlobalRanking(globalMode, "ranking-global-menu");   // 起動時に全国ランキングを取得
-showScreen("screen-menu");
+// 初回（名前が未設定）ならユーザー名入力画面、設定済みならメニューを表示
+if(settings.playerName){ showScreen("screen-menu"); }
+else { showScreen("screen-name"); }
 requestAnimationFrame(loop);

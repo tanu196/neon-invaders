@@ -20,6 +20,18 @@
   <div id="stage-area">
     <canvas id="game" width="480" height="720"></canvas>
 
+    <!-- ================== 初回ユーザー名設定 ================== -->
+    <div id="screen-name" class="overlay hidden">
+      <h1 class="title" style="font-size:30px">プレイヤー名を入力</h1>
+      <p class="subtitle">ランキングに表示される名前です</p>
+      <div class="panel">
+        <input id="first-name-input" maxlength="12" placeholder="例: そら"
+               style="width:100%;padding:12px;font-size:18px;text-align:center;border-radius:8px;border:1.5px solid #888;background:#0c1024;color:#fff">
+      </div>
+      <button class="btn" id="btn-name-ok">決定</button>
+      <button class="btn btn-ghost" id="btn-name-skip">スキップ（ゲスト）</button>
+    </div>
+
     <div id="screen-menu" class="overlay">
       <h1 class="title">NEON INVADERS</h1>
       <p class="subtitle">★ オリジナル宇宙シューティング ★</p>
