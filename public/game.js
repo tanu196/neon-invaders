@@ -184,7 +184,7 @@ function setupStage(){
     };
     s.introText = "BOSS STAGE!";
   } else {
-    const cols = 8;
+    const cols = 10;
     const rows = Math.min(3 + Math.floor(s.stage / 2), 5);
     const offsetX = (W - cols * 46) / 2 + 8;
     for(let r = 0; r < rows; r++) for(let c = 0; c < cols; c++){
