@@ -521,8 +521,10 @@ function hideAllScreens(){
   document.body.classList.remove("overlay-open");
 }
 
-function startGame(){
-  Sound.init(); newGame(); setupStage(); hideAllScreens();
+function startGame(startStage){
+  Sound.init(); newGame();
+  if(typeof startStage === "number") state.stage = startStage;   // 裏コマンド用：開始ステージを上書き（通常は1）
+  setupStage(); hideAllScreens();
 }
 function togglePause(){
   if(scene === "playing"){ scene = "paused"; showScreen("screen-pause"); }
@@ -724,6 +726,25 @@ $("btn-restart").addEventListener("click", startGame);
 $("btn-resume").addEventListener("click", togglePause);
 $("btn-quit").addEventListener("click", goTitle);
 $("btn-title").addEventListener("click", goTitle);
+
+// ===== 裏コマンド：タイトルロゴを1.5秒以内に5回タップ/クリックで「STAGE 100 チャレンジ」を解禁 =====
+let titleTapCount = 0;
+let titleTapTimer = null;
+const menuTitle = $("screen-menu").querySelector(".title");
+if(menuTitle){
+  menuTitle.addEventListener("click", () => {
+    titleTapCount++;
+    clearTimeout(titleTapTimer);
+    titleTapTimer = setTimeout(() => { titleTapCount = 0; }, 1500);   // 1.5秒以内に5回で発動
+    if(titleTapCount >= 5){
+      titleTapCount = 0;
+      $("btn-stage100").style.display = "";   // 隠しボタンを表示
+      Sound.init(); Sound.power();            // 解禁の合図（効果音）
+    }
+  });
+}
+// 隠しボタン：ステージ100から開始（最終ボス）。スコアは通常どおりランキング登録される
+$("btn-stage100").addEventListener("click", () => startGame(100));
 
 /* =============================================================
    [D] オンライン対戦（最小構成）
